@@ -1,3 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-Console.WriteLine("Hello, World!");
+using BigFilesSorter;
+
+var sorter = new Sorter("output-c05ae");
+await sorter.Sort();
