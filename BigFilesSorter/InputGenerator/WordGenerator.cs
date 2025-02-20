@@ -12,9 +12,9 @@ public class WordGenerator
     public string Build(int len)
     {
         var sb = new StringBuilder();
-        for (int i = 0; i < len; i++)
+        for (var i = 0; i < len; i++)
         {
-            var ch = (char) _rand.NextInt64('a', 'z');
+            var ch = (char)_rand.NextInt64('a', 'z');
             sb.Append(ch);
         }
 

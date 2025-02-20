@@ -4,10 +4,9 @@ namespace BigFilesSorter;
 
 public class SplitFileAccessor : IDisposable
 {
-    public readonly string File;
-    
     private readonly FileStream _fileReader;
     private readonly StreamReader _streamReader;
+    public readonly string File;
 
     public SplitFileAccessor(string file)
     {
@@ -16,16 +15,19 @@ public class SplitFileAccessor : IDisposable
         _streamReader = new StreamReader(_fileReader);
         ReachedEnd = false;
     }
-    
+
     public bool ReachedEnd { get; private set; }
+
+    public void Dispose()
+    {
+        _streamReader.Dispose();
+        _fileReader.Dispose();
+    }
 
     public async Task<List<FileLine>> ReadLines(int n)
     {
         var results = new List<FileLine>();
-        if (ReachedEnd)
-        {
-            return results;
-        }
+        if (ReachedEnd) return results;
 
         var linesCount = 0;
         while (linesCount < n)
@@ -42,11 +44,5 @@ public class SplitFileAccessor : IDisposable
         }
 
         return results;
-    }
-
-    public void Dispose()
-    {
-        _streamReader.Dispose();
-        _fileReader.Dispose();
     }
 }

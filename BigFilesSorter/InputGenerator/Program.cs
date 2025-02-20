@@ -1,14 +1,9 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-var outputFileSizeMb = 10; // MB
-
+﻿using System.CommandLine;
 
 try
 {
-    
-
-    var outputFileName = $"output-{Guid.NewGuid().ToString()[..5]}";
-  
+    var rootCommand = CmdLineAccess.BuildRootCmd();
+    return await rootCommand.InvokeAsync(args);
 }
 catch (Exception e)
 {

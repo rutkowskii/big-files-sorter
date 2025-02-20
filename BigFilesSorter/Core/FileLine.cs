@@ -2,16 +2,19 @@
 
 public class FileLine
 {
-    public int Number { get; private set; }
-    public string Str { get; private set; }
-
     public FileLine(int number, string str)
     {
         Number = number;
         Str = str;
     }
 
-    public override string ToString() => $"{Number}. {Str}";
+    public int Number { get; }
+    public string Str { get; }
+
+    public override string ToString()
+    {
+        return $"{Number}. {Str}";
+    }
 
     public static FileLine FromString(string serializedStr)
     {
@@ -21,5 +24,5 @@ public class FileLine
         var str = serializedStr.Substring(dotIndex + 2);
 
         return new FileLine(number, str);
-    } 
+    }
 }

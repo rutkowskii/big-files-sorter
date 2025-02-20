@@ -1,6 +1,13 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using System.CommandLine;
 
-using BigFilesSorter;
-
-using var sorter = new Sorter("output-c05ae", deleteIntermediateFiles: true);
-await sorter.Sort();
+try
+{
+    var rootCommand = CmdLineAccess.BuildRootCmd();
+    return await rootCommand.InvokeAsync(args);
+}
+catch (Exception e)
+{
+    Console.WriteLine("!!! ERROR");
+    Console.WriteLine(e);
+    throw;
+}
