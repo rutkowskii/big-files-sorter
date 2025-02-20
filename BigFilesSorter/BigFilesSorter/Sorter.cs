@@ -6,18 +6,21 @@ public class Sorter : IDisposable
 {
     private const int CharsPerMb = 1048576;
     private const int AvgCharsPerLine = 28;
-    private const int SmallestFileMb = 2; // this is the max MB we load in the RAM. 
+    
     private readonly bool _deleteIntermediateFiles;
     private readonly string _inputFile;
+    private readonly int _memBufferSizeMb;
     private readonly StreamReader _inputFileReader;
     private readonly FileStream _inputFileStream;
     private readonly FileStream _resultFileStream;
     private readonly StreamWriter _resultStreamWriter;
     private bool _needsNextFile;
 
-    public Sorter(string inputFile, bool deleteIntermediateFiles)
+    public Sorter(string inputFile, int memBufferSizeMb, bool deleteIntermediateFiles)
     {
         _inputFile = inputFile;
+        _memBufferSizeMb = memBufferSizeMb;
+        
         _deleteIntermediateFiles = deleteIntermediateFiles;
 
         _inputFileStream = File.OpenRead(inputFile);
@@ -49,13 +52,13 @@ public class Sorter : IDisposable
 
             var linesBuffer = new List<FileLine>();
 
-            var linesCountToLoadFirst = CharsPerMb * SmallestFileMb / AvgCharsPerLine / accesorsCount;
+            var linesCountToLoadFirst = CharsPerMb * _memBufferSizeMb / AvgCharsPerLine / accesorsCount;
 
             var lastLinesLoadedCount = int.MaxValue;
             var isFirstIteration = true;
             do
             {
-                var linesToLoadCount = isFirstIteration ? linesCountToLoadFirst : linesCountToLoadFirst / accesorsCount;
+                var megabytesToLoadTotal = isFirstIteration ? linesCountToLoadFirst : linesCountToLoadFirst / accesorsCount;
                 var linesLoaded = await LoadLinesFromSplitFiles(sortedSplitFilesAccessors, linesToLoadCount);
                 lastLinesLoadedCount = linesLoaded.Count;
 
@@ -99,7 +102,8 @@ public class Sorter : IDisposable
         return sortedSplitFilesAccessors;
     }
 
-    private static async Task<List<FileLine>> LoadLinesFromSplitFiles(SplitFileAccessor[] accessors,
+    private static async Task<List<FileLine>> LoadLinesFromSplitFiles(
+        SplitFileAccessor[] accessors,
         int linesCountToLoad)
     {
         var linesLoadTasks = accessors.Select(x => x.ReadLines(linesCountToLoad)).ToArray();
