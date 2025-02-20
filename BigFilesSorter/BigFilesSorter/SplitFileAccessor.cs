@@ -4,14 +4,15 @@ namespace BigFilesSorter;
 
 public class SplitFileAccessor : IDisposable
 {
-    private readonly string _file;
+    public readonly string File;
+    
     private readonly FileStream _fileReader;
     private readonly StreamReader _streamReader;
 
     public SplitFileAccessor(string file)
     {
-        _file = file;
-        _fileReader = File.OpenRead(_file);
+        File = file;
+        _fileReader = System.IO.File.OpenRead(File);
         _streamReader = new StreamReader(_fileReader);
         ReachedEnd = false;
     }
@@ -42,9 +43,6 @@ public class SplitFileAccessor : IDisposable
 
         return results;
     }
-    
-    
-
 
     public void Dispose()
     {

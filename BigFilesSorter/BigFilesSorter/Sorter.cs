@@ -3,21 +3,31 @@ using Core;
 
 namespace BigFilesSorter;
 
+
 public class Sorter : IDisposable
 {
     private readonly string _inputFile;
+    private readonly bool _deleteIntermediateFiles;
     private readonly FileStream _inputFileStream;
     private readonly StreamReader _inputFileReader;
     private bool _needsNextFile;
+    private readonly FileStream _resultFileStream;
+    private readonly StreamWriter _resultStreamWriter;
     const int CharsPerMb = 1048576;
     const int AvgCharsPerLine = 28;
     const int SmallestFileMb = 2; // this is the max MB we load in the RAM. 
 
-    public Sorter(string inputFile)
+    public Sorter(string inputFile, bool deleteIntermediateFiles)
     {
         _inputFile = inputFile;
+        _deleteIntermediateFiles = deleteIntermediateFiles;
+        
         _inputFileStream = File.OpenRead(inputFile);
         _inputFileReader = new StreamReader(_inputFileStream);
+        
+        var outputFileName = $"{_inputFile}-SORTED";
+        _resultFileStream = File.OpenWrite(outputFileName);
+        _resultStreamWriter = new StreamWriter(_resultFileStream);
     }
     
     public async Task Sort()
@@ -26,16 +36,10 @@ public class Sorter : IDisposable
         {
             var splitFiles = await SplitInputFile();
 
-            var sortSmallFilesTasks = splitFiles.Select(SortSingleFile).ToArray();
-            await Task.WhenAll(sortSmallFilesTasks);
-            
-            
-            var sortedSplitFiles = sortSmallFilesTasks.Select(x => x.Result).ToArray();
-            var accessors = sortedSplitFiles.Select(x => new SplitFileAccessor(x)).ToArray();
-            var accesorsCount = accessors.Length;
+            var sortedSplitFilesAccessors = await SortSplitFiles(splitFiles);
+            var accesorsCount = sortedSplitFilesAccessors.Length;
 
-            var outputFileName = $"{_inputFile}-SORTED";
-            using var resultFileWriter = File.OpenWrite(outputFileName);
+          
             
             var linesBuffer = new List<FileLine>();
             
@@ -46,7 +50,7 @@ public class Sorter : IDisposable
             do
             {
                 var linesToLoadCount = isFirstIteration ? linesCountToLoadFirst : linesCountToLoadFirst / accesorsCount; 
-                var linesLoaded = await LoadLinesFromSplitFiles(accessors, linesToLoadCount);
+                var linesLoaded = await LoadLinesFromSplitFiles(sortedSplitFilesAccessors, linesToLoadCount);
                 lastLinesLoadedCount = linesLoaded.Count;
                 
                 Console.WriteLine($"Loaded {lastLinesLoadedCount} from split files.");
@@ -54,16 +58,20 @@ public class Sorter : IDisposable
                 linesBuffer.AddRange(linesLoaded);
                 linesBuffer.Sort(new DefaultFileLineComparer());
 
-                await OutputTopLinesAndRemove(linesBuffer, linesCountToLoadFirst, resultFileWriter);
+                await OutputTopLinesAndRemove(linesBuffer, linesCountToLoadFirst);
                 isFirstIteration = false;
             } while (lastLinesLoadedCount > 0);
 
-            await OutputTopLinesAndRemove(linesBuffer, linesBuffer.Count, resultFileWriter);
+            await OutputTopLinesAndRemove(linesBuffer, linesBuffer.Count);
 
             
-            foreach (var accessor in accessors)
+            foreach (var accessor in sortedSplitFilesAccessors)
             {
                 accessor.Dispose();
+                if (_deleteIntermediateFiles)
+                {
+                    File.Delete(accessor.File);
+                }
             }
             
 
@@ -76,6 +84,24 @@ public class Sorter : IDisposable
         }
     }
 
+    private async Task<SplitFileAccessor[]> SortSplitFiles(List<string> splitFiles)
+    {
+        var sortSmallFilesTasks = splitFiles.Select(SortSingleFile).ToArray();
+        await Task.WhenAll(sortSmallFilesTasks);
+
+        if (_deleteIntermediateFiles)
+        {
+            foreach (var splitFile in splitFiles)
+            {
+                File.Delete(splitFile);
+            }
+        }
+        
+        var sortedSplitFiles = sortSmallFilesTasks.Select(x => x.Result).ToArray();
+        var sortedSplitFilesAccessors = sortedSplitFiles.Select(x => new SplitFileAccessor(x)).ToArray();
+        return sortedSplitFilesAccessors;
+    }
+
     private static async Task<List<FileLine>> LoadLinesFromSplitFiles(SplitFileAccessor[] accessors, int linesCountToLoad)
     {
         var linesLoadTasks = accessors.Select(x => x.ReadLines(linesCountToLoad)).ToArray();
@@ -84,12 +110,11 @@ public class Sorter : IDisposable
         return allLines;
     }
 
-    private static async Task OutputTopLinesAndRemove(List<FileLine> linesBuffer, int linesCount, FileStream resultFileWriter)
+    private async Task OutputTopLinesAndRemove(List<FileLine> linesBuffer, int linesCount)
     {
         foreach (var line in linesBuffer.Take(linesCount))
         {
-            await resultFileWriter.WriteAsync(Encoding.UTF8.GetBytes(line.ToString())); // todo piotr dry
-            await resultFileWriter.WriteAsync(Encoding.UTF8.GetBytes(Environment.NewLine));
+            await _resultStreamWriter.WriteLineAsync(line.ToString());
         }
 
         linesBuffer.RemoveRange(0, linesCount);
@@ -124,11 +149,11 @@ public class Sorter : IDisposable
         entries.Sort(new DefaultFileLineComparer());
 
         var sortedFileName = $"{fileName}-SORTED";
-        using var fileWriter = File.OpenWrite(sortedFileName);
+        using var fileStream = File.OpenWrite(sortedFileName);
+        using var streamWriter = new StreamWriter(fileStream);
         foreach (var entry in entries)
         {
-            await fileWriter.WriteAsync(Encoding.UTF8.GetBytes(entry.ToString()));
-            await fileWriter.WriteAsync(Encoding.UTF8.GetBytes(Environment.NewLine));
+            await streamWriter.WriteLineAsync(entry.ToString());
         }
 
         return sortedFileName;
@@ -167,5 +192,8 @@ public class Sorter : IDisposable
     {
         _inputFileStream.Dispose();
         _inputFileReader.Dispose();
+
+        _resultStreamWriter.Dispose();
+        _resultFileStream.Dispose();
     }
 }

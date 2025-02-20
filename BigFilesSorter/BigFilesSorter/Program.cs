@@ -2,5 +2,5 @@
 
 using BigFilesSorter;
 
-var sorter = new Sorter("output-c05ae");
+using var sorter = new Sorter("output-c05ae", deleteIntermediateFiles: true);
 await sorter.Sort();
