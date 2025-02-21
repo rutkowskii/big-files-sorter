@@ -14,7 +14,7 @@ public class WordGenerator
         var sb = new StringBuilder();
         for (var i = 0; i < len; i++)
         {
-            var ch = (char)_rand.NextInt64('a', 'z');
+            var ch = (char)_rand.NextInt64('a', 'z' + 1);
             sb.Append(ch);
         }
 

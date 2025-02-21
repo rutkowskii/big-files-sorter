@@ -18,19 +18,13 @@ public class SplitFileAccessor : IDisposable
 
     public bool ReachedEnd { get; private set; }
 
-    public void Dispose()
-    {
-        _streamReader.Dispose();
-        _fileReader.Dispose();
-    }
-
-    public async Task<List<FileLine>> ReadLines(int n)
+    public async Task<List<FileLine>> ReadLines(int bytesToLoad)
     {
         var results = new List<FileLine>();
         if (ReachedEnd) return results;
 
-        var linesCount = 0;
-        while (linesCount < n)
+        var bytesLoaded = 0;
+        while (bytesLoaded < bytesToLoad)
         {
             var line = await _streamReader.ReadLineAsync();
             if (line is null)
@@ -40,9 +34,15 @@ public class SplitFileAccessor : IDisposable
             }
 
             results.Add(FileLine.FromString(line));
-            linesCount++;
+            bytesLoaded += line.Length;
         }
 
         return results;
+    }
+
+    public void Dispose()
+    {
+        _streamReader.Dispose();
+        _fileReader.Dispose();
     }
 }

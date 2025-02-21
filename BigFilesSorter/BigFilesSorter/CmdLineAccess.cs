@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
-using BigFilesSorter;
+
+namespace BigFilesSorter;
 
 public static class CmdLineAccess
 {
@@ -14,8 +15,14 @@ public static class CmdLineAccess
 
         rootCommand1.SetHandler(async (file, memBufferSizeMb)  =>
             {
-                using var sorter = new Sorter(file.FullName, memBufferSizeMb, deleteIntermediateFiles: true);
-                await sorter.Sort();
+                string sortedFile = null;
+                using(var sorter = new Sorter(file.FullName, memBufferSizeMb, deleteIntermediateFiles: true))
+                {
+                    sortedFile = await sorter.Sort();
+                    Console.WriteLine($"Sorted file: [{sortedFile}]");          
+                }
+                
+                await new SortedFileCheck().Run(sortedFile);
             },
             fileOption, memBufferSizeMbOption);
         return rootCommand1;
