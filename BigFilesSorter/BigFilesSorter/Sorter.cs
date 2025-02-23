@@ -1,5 +1,5 @@
-﻿using System.Data.SqlTypes;
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using System.Text;
 using Core;
 
 namespace BigFilesSorter;
@@ -75,15 +75,14 @@ public class Sorter : IDisposable
                 linesBuffer.AddRange(linesLoaded);
                 linesBuffer.Sort(new DefaultFileLineComparer());
 
-                await OutputTopLinesAndRemove(linesBuffer, linesBuffer.Count / accesorsCount);
+                OutputTopLinesAndRemove(linesBuffer, linesBuffer.Count / accesorsCount);
                 isFirstIteration = false;
             } while (lastLinesLoadedCount > 0);
 
-            await OutputTopLinesAndRemove(linesBuffer, linesBuffer.Count);
+            OutputTopLinesAndRemove(linesBuffer, linesBuffer.Count);
             
             sw.Stop();
             Console.WriteLine($"Finished sorting file {_inputFile}, it took {sw.ElapsedMilliseconds / 1000}s");
-
 
             CleanupSplitFilesAccessors(sortedSplitFilesAccessors);
 
@@ -132,9 +131,14 @@ public class Sorter : IDisposable
         return allLines;
     }
 
-    private async Task OutputTopLinesAndRemove(List<FileLine> linesBuffer, int linesCount)
+    private void OutputTopLinesAndRemove(List<FileLine> linesBuffer, int linesCount)
     {
-        foreach (var line in linesBuffer.Take(linesCount)) await _resultStreamWriter.WriteLineAsync(line.ToString());
+        var sb = new StringBuilder();
+        foreach (var line in linesBuffer.Take(linesCount))
+        {
+            sb.AppendLine(line.ToString());
+        }
+        _resultStreamWriter.Write(sb);
 
         linesBuffer.RemoveRange(0, linesCount);
 
