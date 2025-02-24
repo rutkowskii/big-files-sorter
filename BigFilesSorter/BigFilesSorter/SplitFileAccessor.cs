@@ -14,11 +14,12 @@ public class SplitFileAccessor : IDisposable
         _fileReader = System.IO.File.OpenRead(File);
         _streamReader = new StreamReader(_fileReader);
         ReachedEnd = false;
+        
     }
 
     public bool ReachedEnd { get; private set; }
 
-    public async Task<List<FileLine>> ReadLines(int bytesToLoad)
+    public List<FileLine> ReadLines(int bytesToLoad)
     {
         var results = new List<FileLine>();
         if (ReachedEnd) return results;
@@ -26,7 +27,7 @@ public class SplitFileAccessor : IDisposable
         var bytesLoaded = 0;
         while (bytesLoaded < bytesToLoad)
         {
-            var line = await _streamReader.ReadLineAsync();
+            var line = _streamReader.ReadLine();
             if (line is null)
             {
                 ReachedEnd = true;

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using Core;
 
@@ -68,7 +69,7 @@ public class Sorter : IDisposable
             {
                 var megabytesToLoadTotal = isFirstIteration ? _memBufferSizeMb : _memBufferSizeMb / accesorsCount;
                 var linesLoaded = await LoadLinesFromSplitFiles(sortedSplitFilesAccessors, megabytesToLoadTotal);
-                lastLinesLoadedCount = linesLoaded.Count;
+                lastLinesLoadedCount = linesLoaded.Length;
 
                 // Console.WriteLine($"Loaded {lastLinesLoadedCount} lines from split files.");
 
@@ -119,16 +120,24 @@ public class Sorter : IDisposable
         return sortedSplitFilesAccessors;
     }
 
-    private static async Task<List<FileLine>> LoadLinesFromSplitFiles(
+    private static async Task<FileLine[]> LoadLinesFromSplitFiles(
         SplitFileAccessor[] accessors,
         int megabytesToLoadTotal)
     {
-        var bytesToLoadPerAccessor = megabytesToLoadTotal * 1024 * 1024 / accessors.Length; 
+        var results = new ConcurrentBag<FileLine>();
         
-        var linesLoadTasks = accessors.Select(x => x.ReadLines(bytesToLoadPerAccessor)).ToArray();
+        var bytesToLoadPerAccessor = megabytesToLoadTotal * 1024 * 1024 / accessors.Length;
+        
+        var linesLoadTasks = accessors.Select(accessor => Task.Run(() =>
+        {
+            foreach (var fileLine in accessor.ReadLines(bytesToLoadPerAccessor))
+            {
+                results.Add(fileLine);
+            }
+        })).ToArray();
+        
         await Task.WhenAll();
-        var allLines = linesLoadTasks.Select(x => x.Result).SelectMany(x => x).ToList();
-        return allLines;
+        return results.ToArray();
     }
 
     private void OutputTopLinesAndRemove(List<FileLine> linesBuffer, int linesCount)
