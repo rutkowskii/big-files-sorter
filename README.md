@@ -13,5 +13,5 @@ Input generation example (Note that size is given in bytes):
 Sorting example:
 
 ```Powershell
-.\BigFilesSorter.exe --file input100g
+.\BigFilesSorter.exe --file input100g --memBufferSizeMb 100
 ```
